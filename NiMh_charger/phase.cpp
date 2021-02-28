@@ -121,7 +121,6 @@ uint32_t PRECHARGE::run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
     bool charge = b->togglePause();
     uint32_t next = millis();
     bool started    = b->prechargeCurrent();
-    //bool precharged = b->minVoltageReached();
     bool precharged = b->phaseComplete();
     if (charge) {
         uint16_t mV = pCharger->mV(index);
@@ -130,14 +129,12 @@ uint32_t PRECHARGE::run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
             if (mV > PRECHARGE_VOLTAGE) {                   // Precharge voltage reached after discharge impulse and pause
                 return 0;                                   // Finish phase
             } else {
-                //b->setPrechargeMinVoltage(false);
                 b->setPhaseComplete(false);
             }
         }
         if (started && mV > PRECHARGE_VOLTAGE) {            // It seems, the precharge is completed
             pCharger->pulseDischarge(index, DISCHARGING_PULSE); // Apply discharging pulse
             charge = b->togglePause();                      // Activate long time pause
-            //b->setPrechargeMinVoltage(true);
             b->setPhaseComplete(true);
             next += test_period;
         } else {
@@ -158,7 +155,7 @@ time_t CHARGE::init(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
     logPhase(index, 2);
     tChargeType type = b->schedule();
     time_t finish_time = now() + b->remains();
-    b->startCharging(true);                                 // Reset battery temperature
+    b->startCharging();
     pCharger->setChargeCurrent(index, b->chargeCurrent());
     b->setPause(false);
     return finish_time;
@@ -175,18 +172,28 @@ uint32_t CHARGE::run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
     mV = b->update(mV);
     b->updateCurrent(mA);
 
-    uint16_t start_temp = b->chargeStartTemp();
-    if (start_temp && t >= (start_temp + 150)) {            // Heavy overheat registered, stop charging
+    uint16_t max_temp = b->getMaxTemp();
+    if (max_temp > 0 && t >= max_temp) {
         b->finishCode(CODE_OVERHEAT);
+        char buff[20];
+        sprintf(buff, "Temp. over %2d.%d", max_temp/10, max_temp%10);
+        logComplete(index, buff);
+        return 0;  
+    }
+    if (t >= HOT_TEMPERATURE) {                             // Heavy overheat registered, stop charging
+        b->finishCode(CODE_OVERHEAT);
+        logComplete(index, F("Overheat"));
         return 0;
     }
     if (mV >= MAX_VOLTAGE) {                                // The battery has been overcharged. mV is an average battery voltage
         b->finishCode(CODE_MAX_VOLTAGE);
+        logComplete(index, F("Max voltage"));
         return 0;
     }
     
     if (type != CH_RESTORE && b->voltageDrop()) {           // The battery voltage drop has been detected, stop charging
         b->finishCode(CODE_OK);
+        logComplete(index, F("Voltage drop"));
         return 0;
     }
     if (t > MAX_TEMPERATURE) {
@@ -199,10 +206,16 @@ uint32_t CHARGE::run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
         b->setPause(false);
         pCharger->pauseCharging(index, false);              // Restore charging
     }
-    b->saveStartTemp(t);                                    // Save start charging temperature (if it is time)
     if (pCharger->temperature(2) > HS_OVERHEAT) {           // Check for the heat sink overheat
-         b->finishCode(CODE_HS_OVERHEAT);
+        b->finishCode(CODE_HS_OVERHEAT);
+        logComplete(index, F("Charger overheat"));
          return 0;
+    }
+    if (max_temp == 0 && b->elapsed() > 1200) {             // The battery charged over 20 minutes and battery max temperature was not setup
+        max_temp = t + MAX_CHARGE_TEMP;
+        if (max_temp > MAX_TEMPERATURE)
+            max_temp = MAX_TEMPERATURE;
+        b->setMaxTemp(max_temp);                            // Setup maximal battery temperature
     }
     return next_step;
 }
@@ -210,11 +223,11 @@ uint32_t CHARGE::run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
 time_t POSTCHARGE::init(uint8_t index, TWCHARGER *pCharger, BATTERY *b) {
     logPhase(index, 3);
     uint16_t t = pCharger->temperature(index);
-    uint16_t current = b->capacity() / 20;                  // 5%
+    uint16_t current = b->capacity() / 20;                  // 5% of battery capacity
     if (t >= HOT_TEMPERATURE)
-        current = b->capacity() / 5;                        // 20%
+        current = b->capacity() / 50;                       // 2% of battery capacity
     pCharger->setChargeCurrent(index, current);
-    b->startCharging(false);                                // Keep battery temperature
+    b->startCharging();
     b->setPause(false);
     return 20*60;                                           // 20 minutes
 }

@@ -14,7 +14,7 @@ class DSPL : public LiquidCrystal_I2C {
     public:
         DSPL(uint8_t i2c_addr, uint8_t br_pin = 255) : LiquidCrystal_I2C(i2c_addr, COLS, ROWS) { this->br_pin = br_pin; }
         void        begin(void);
-        void        slotStatus(uint8_t index, uint16_t cap, tChargeType type);
+        void        slotStatus(uint8_t index, uint16_t cap, tChargeType type, bool no_discharge);
         void        phaseName(tPhase phase, uint8_t index, uint16_t cap, tChargeType type);
         void        complete(uint8_t index, tFinish code, uint16_t cap, tChargeType type);
         void        chargingInfo(tPhase phase, uint8_t index, uint16_t mV, uint16_t mA, uint16_t charged, uint16_t temp);

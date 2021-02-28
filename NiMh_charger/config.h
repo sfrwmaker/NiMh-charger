@@ -1,7 +1,7 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
-#define VERSION         ("0.1")
+#define VERSION         (" 1.01")
 
 // Aref voltage (setup by voltage source), mV
 #define AREF_MV         (2487)
@@ -35,7 +35,12 @@
 #define TWCH_ONE_WIRE   (13)
 
 // Comment out next line to disable log output on the serial port
-#define LOG_ENABLE      (1)
+#define LOG_ENABLE          (1)
+// Comment out next line to disable log ouptut of battery voltage dump. Use it together with LOG_ENABLE
+#define LOG_VOLTAGE_DUMP    (1)
+// Log battery status period (seconds)
+#define LOG_STATUS_PERIOD   (600)
+
 
 // Charge resistors resistance, 1/10 Ohms. i.e. 31 for 3.1 Ohm
 #define TWCH_CHARGE_RES_A   (30)
@@ -65,10 +70,12 @@
 // The maximum battery voltage in post charging phase (after main charinig phase)
 #define BATT_POSTCHARGE_VOLTAGE (1590)
 
+// The maximum temperature difference betwen start chagring one and finish charging
+#define MAX_CHARGE_TEMP         (150)
 // Hot temperature, when pause charging. 1/10 Celsius. i.e 395 for 39.5 degrees Celsius
-#define HOT_TEMPERATURE         (400)
+#define HOT_TEMPERATURE         (500)
 // Maximum temperature, when stop charging. 1/10 Celsius
-#define MAX_TEMPERATURE         (500)
+#define MAX_TEMPERATURE         (550)
 
 // Time required for slow charging, hours
 #define SLOW_CHARGING_TIME		(10)
@@ -81,12 +88,10 @@
 // Discharging impulse time, ms
 #define DISCHARGING_PULSE       (20)
 
-// The temperature when FAN should be turn-on (above Ambient one)
-#define HS_ON_TEMP              (200)
+// Heat sink temperature to turn on the FAN
+#define HS_HOT_TEMP             (500)
 // Heat sink temperature difference to on-off FAN, Celsius * 10
 #define HS_DIFF_TEMP            (50)
-// Heat sink temperature to turn on the FAN for sure
-#define HS_HOT_TEMP             (500)
 // Heat sink overheat temperature. Emergency turn-off
 #define HS_OVERHEAT             (600)
 

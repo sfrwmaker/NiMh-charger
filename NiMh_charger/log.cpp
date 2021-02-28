@@ -10,12 +10,6 @@ static const char phase_name[5][12] PROGMEM = {
     "complete   "
 };
 
-static const char complete_code_name[9][3] PROGMEM = {
-    "vol drop",
-    "overheat",
-    "max volt"
-};
-
 void logBegin(void) {
 #ifdef LOG_ENABLE
     Serial.begin(115200);
@@ -23,7 +17,7 @@ void logBegin(void) {
 #endif
 }
 
-static void logTimestamp(void) {
+void logTimestamp(void) {
     time_t n = now();
     if (n > 86400) {                                        // Longer that one day
         Serial.print(n/86400);
@@ -57,18 +51,6 @@ void logPhase(uint8_t index, uint8_t phase, bool lf) {
 #endif
 }
 
-void logComplete(uint8_t index, tFinish code) {
-#ifdef LOG_ENABLE
-    if (code == 0 || code > 3) return;
-    index &= 1;                                             // Ensure index is in interval 0..1
-    logTimestamp();
-    uint8_t in = (uint8_t)code-1;
-    Serial.print((const __FlashStringHelper*)&complete_code_name[in]);
-    Serial.print(" ");
-    Serial.println((char)(index+'A'));
-#endif
-}
-
 void logBatteryStatus(uint8_t index, BATTERY *b, HW *core, int16_t temp) {
 #ifdef LOG_ENABLE
     uint8_t phase_index = b->phaseIndex();
@@ -94,5 +76,45 @@ void logBatteryStatus(uint8_t index, BATTERY *b, HW *core, int16_t temp) {
     Serial.print(temp/10);
     Serial.print(".");
     Serial.println(temp%10);
+#endif
+}
+
+void logFan(int16_t hs_temp, bool on) {
+#ifdef LOG_ENABLE
+    logTimestamp();
+    Serial.print(F(" Heat sink temp. "));
+    Serial.print(hs_temp/10);
+    Serial.print(".");
+    Serial.print(hs_temp%10);
+    Serial.print(F(", fan o"));
+    if (on) {
+        Serial.println(F("n"));
+    } else {
+        Serial.println(F("ff"));
+    }
+#endif
+}
+
+void logComplete(uint8_t index, __FlashStringHelper *msg) {
+#ifdef LOG_ENABLE
+    index &= 1;                                             // Ensure index is in interval 0..1
+    logTimestamp();
+    Serial.print((const __FlashStringHelper*)&phase_name[4]);
+    Serial.print(" ");
+    Serial.print((char)(index+'A'));
+    Serial.print(" ");
+    Serial.println(msg);
+#endif
+}
+
+void logComplete(uint8_t index, const char *msg) {
+#ifdef LOG_ENABLE
+    index &= 1;                                             // Ensure index is in interval 0..1
+    logTimestamp();
+    Serial.print((const __FlashStringHelper*)&phase_name[4]);
+    Serial.print(" ");
+    Serial.print((char)(index+'A'));
+    Serial.print(" ");
+    Serial.println(msg);
 #endif
 }

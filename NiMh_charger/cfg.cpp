@@ -17,6 +17,7 @@ bool CONFIG::readConfig(tCfg &rec) {
     rec.capacity[0] = rec.capacity[1]   = BATT_CAPACITY;
     rec.type[0]     = rec.type[1]       = CH_SLOW;
     rec.loops[0]    = rec.loops[1]      = 0;
+    rec.bit_flag[0] = 0;
     return false;
 }
 

@@ -91,7 +91,6 @@ class TWCHARGER {
         uint16_t    current[2];                             // The preset charging current
         PID         ch_pid[2];
         LongPWM     pwm;
-        uint16_t    hs_hot_temp     = HS_HOT_TEMP;          // Heat sink temperature when turn the FAN on
         bool        fan_on;                                 // Current fan status
         volatile uint32_t charge_ctr[2]   = {0};            // charge power counter
         volatile uint32_t dische_ctr[2]   = {0};            // discharge power counter

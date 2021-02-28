@@ -10,11 +10,8 @@
 class PHASE {
     public:
         PHASE(void)                                         { }
-        virtual time_t      init(uint8_t index, TWCHARGER *pCharger, BATTERY *b)
-                                                            { return 0; }
+        virtual time_t      init(uint8_t index, TWCHARGER *pCharger, BATTERY *b)    { return 0; }
         virtual uint32_t    run(uint8_t index, TWCHARGER *pCharger, BATTERY *b) = 0; // Returns time of next loop
-    protected:
-        const uint32_t period = 1000;
 };
 
 class CHECK: public PHASE {
@@ -52,7 +49,7 @@ class CHARGE: public PHASE {
         virtual time_t      init(uint8_t index, TWCHARGER *pCharger, BATTERY *b);
         virtual uint32_t    run(uint8_t index, TWCHARGER *pCharger, BATTERY *b);
     private:
-        const uint32_t  period      = 30000;                 // 30 S charging period
+        const uint32_t  period      = 60000;                 // 60 seconds charging period
 };
 
 class POSTCHARGE: public PHASE {
@@ -61,7 +58,8 @@ class POSTCHARGE: public PHASE {
         virtual time_t      init(uint8_t index, TWCHARGER *pCharger, BATTERY *b);
         virtual uint32_t    run(uint8_t index, TWCHARGER *pCharger, BATTERY *b);
     private:
-        const uint32_t  pause_period = 30000;
+        const uint32_t  period          = 60000;            // 60 seconds charging period
+        const uint32_t  pause_period    = 10000;
 };
 
 class KEEPCHARGE: public PHASE {

@@ -1,21 +1,47 @@
 #include "battery.h"
+#include "log.h"
 
-void BATTERY::init(uint16_t mAh, tChargeType type, uint8_t loops){
+void BATTERY::init(uint16_t mAh, tChargeType type, uint8_t loops, bool no_discharge){
     this->mAh = mAh;
     charge_type = type;
     phase_index = 0;
     count       = loops;
+    no_disch    = no_discharge;
+    if (count > 0)                                          // When charging loops enabled, do discharge battery every loop
+        no_discharge    = false;
     pause       = false;
     ph_complete = false;
     start       = 0;
+    max_temp    = 0;
     reason      = CODE_UNKNOWN;
     reset();
 }
-
+/*
+ * The main charge phase should be completed when voltage drop detected
+ * Voltage drop means the average voltage gradient become negative
+ * The post-charge phase uses this method also.
+ * As soon as post-charge current is less than current in the main charging phase,
+ * the battery voltage can decrease at the begining of the post-charge phase. 
+ * To prevent wrong 'complete' condition detection, the volt_incr flag implemented.
+ * When the pahse start, this flag reseted to false. And when positive gradient of average
+ * voltage detected the volt_incr flag set to true.
+ */
 bool BATTERY::voltageDrop(void) {
-    // start_temp should be initialized in several seconds after charging start
-    if (start_temp == 0 || mV.length() < B_MV_SIZE) return false;
-    return (mV.gradient() < 100);
+    if (mV.length() < B_MV_SIZE/2) return false;
+    int32_t g = mV.gradient();
+#ifdef LOG_VOLTAGE_DUMP
+    logTimestamp();
+    Serial.print(F("vdump: "));
+    mV.dump();
+#endif
+    if (!volt_incr) {
+        if (g > 4) {
+            volt_incr = true;                               // voltage increment detected!
+            logMessage(F("Voltage increment detected"));
+        }
+        return false; 
+    }
+    return (g < -10);
 }
 
 uint16_t BATTERY::chargeCurrent(void) {
@@ -48,7 +74,11 @@ uint8_t BATTERY::nextPhase(bool fin) {
             phase_index = 0;                                // phase_index == 4 - means postcharge. Start over again
             --count;
         }
-        ++phase_index;
+        if (phase_index == 0 && no_disch) {                 // Skip discharge phase
+            phase_index = (uint8_t)PH_PRECHARGE;
+        } else {
+            ++phase_index;
+        }
         if (phase_index == (uint8_t)PH_PRECHARGE) {         // Start the battery charging process
             start = now();
             chargeCurrent();                                // Also calculate finish time
@@ -57,6 +87,7 @@ uint8_t BATTERY::nextPhase(bool fin) {
     }
     ph_error    = 0;
     ph_complete = false;
+    max_temp    = 0;
     return phase_index;
 }
 
@@ -71,12 +102,9 @@ tPhase BATTERY::phaseID(void) {
     }
 }
 
-void BATTERY::startCharging(bool reset_temp) {
-    overheat     = false;
-    if (reset_temp) {
-        start_temp   = 0;
-        save_temp    = millis() + save_temp_period;
-    }
+void BATTERY::startCharging(void) {
+    overheat    = false;
+    volt_incr   = false;                                    // Voltage increment flag reset at phase start
     // Truncate history data
     uint16_t tmp = mV.read();
     mV.reset();
@@ -84,13 +112,6 @@ void BATTERY::startCharging(bool reset_temp) {
     tmp = mA.read();
     mA.reset();
     mA.update(tmp);
-}
-
-void BATTERY::saveStartTemp(uint16_t temp) {
-    if (save_temp && millis() >= save_temp) {
-        start_temp = temp;
-        save_temp = 0;                                      // The start temperature has been saved
-    }
 }
 
 time_t BATTERY::remains(void) {

@@ -1,7 +1,7 @@
 /*
- * On atmega328p running at 8 MHz
- * 
- * Created Feb 06 2021
+ * NiMh two channels battery charger
+ * Based nn atmega328p running at 8 MHz
+ * Created Feb 28 2021
  */
 #include "hw.h"
 #include "mode.h"
@@ -29,7 +29,9 @@ static PHASE*      phase[6] = {&ph_check, &ph_discharge, &ph_precharge,
 void disconnectBattery(uint8_t i) {
     tCfg rec;
     core.cfg.readConfig(rec);
-    batt[i].init(rec.capacity[i], rec.type[i], rec.loops[i]); // The battery disconnected
+    // The battery disconnected
+    bool no_discharge = rec.bit_flag[i] & bf_nodischarge;
+    batt[i].init(rec.capacity[i], rec.type[i], rec.loops[i], no_discharge);
     core.discharge(i, false);
     core.setChargeCurrent(i, false);  
     core.initChargeCounter(i);
@@ -51,7 +53,8 @@ void setup(void) {
     tCfg    rec;
     core.cfg.readConfig(rec);
     for (uint8_t i = 0; i < 2; ++i) {
-        batt[i].init(rec.capacity[i], rec.type[i], rec.loops[i]);
+        bool no_discharge = rec.bit_flag[i] & bf_nodischarge;
+        batt[i].init(rec.capacity[i], rec.type[i], rec.loops[i], no_discharge);
     }
 
     core.dspl.aboutInfo(core.temperature(2));
@@ -67,6 +70,7 @@ void loop(void) {
     static time_t   log_time = 0;
 
     core.manageFan();                                       // Prevent main heat sink overheating
+    core.dspl.updateBrightness();                           // Smoothly manage display brightness
         
     for (uint8_t i = 0; i < 2; ++i) {
         if (millis() < next[i]) continue;
@@ -104,8 +108,6 @@ void loop(void) {
                 core.initChargeCounter(i);
             } else if (phase_index == PH_PRECHARGE) {
                 core.initChargeCounter(i);
-            } else if (phase_index == PH_KEEP) {
-                logComplete(i, batt[i].finishReason());
             }
             p = phase[phase_index];
             over[i] = p->init(i, &core, &batt[i]);
@@ -135,13 +137,13 @@ void loop(void) {
 
     // Log the battery status
     if (now() >= log_time) {
-        log_time = now() + 300;
+        log_time = now() + LOG_STATUS_PERIOD;
+        int16_t hs_t = core.temperature(2);
         for (uint8_t i =0 ; i < 2; ++i) {
             int16_t t = core.temperature(i);
             logBatteryStatus(i, &batt[i], &core, t);
         }
     }
-    
 }
 
 /*

@@ -63,19 +63,47 @@ float HISTORY::dispersion(void) {
     return d;
 }
 
+/*
+ * Calculate gradient using linear approximation by Ordinary Least Squares method
+ * Y = a * X + b, where a and b are double coefficients
+ * a = (N * sum(Xi*Yi) - sum(Xi) * sum(Yi)) / ( N * sum(Xi^2) - (sum(Xi))^2)
+ * b = 1/N * (sum(Yi) - a * sum(Xi))
+ * gradient is an 'a' parameter
+ * 
+ */
 int32_t HISTORY::gradient(void) {
-    if (len < h_length) return 0;                       // The queue is not full
-    int32_t sx, sx_sq, sxy, sy;
-    sx = sx_sq = sxy = sy = 0;
-    uint8_t item = index;                               // First item in the queue
+    if (len < 3) return 0;                              // The queue is almost empty
+    int32_t sx, sxx, sxy, sy;
+    sx = sxx = sxy = sy = 0;
+    uint8_t item = index;                               // The first item in the queue (ring queue)
+    uint16_t avg = read();                              // Average value
     for (uint8_t i = 1; i <= len; ++i) {
+        int32_t value = (int32_t)queue[item] - (int32_t)avg; // To increase accuracy, calculate difference between queue data and average value
         sx    += i;
-        sx_sq += i*i;
-        sxy   += i*queue[item];
-        sy    += queue[item];
+        sxx += i*i;
+        sxy   += i*value;
+        sy    += value;
         if (++item >= h_length) item = 0;
     }
     int32_t numerator   = len * sxy - sx * sy;
-    int32_t denominator = len * sx_sq - sx * sx;
-    return (numerator*1000/denominator);
+    int32_t denominator = len * sxx - sx * sx;
+    return (numerator*100/denominator);
+}
+
+void HISTORY::dump(void) {
+    if (len < h_length) {                               // Partially loaded queue
+        for (uint8_t i = 0; i < len; ++i) {
+            Serial.print(queue[i]);
+            Serial.print(", ");
+        }
+    } else {                                            // Completely loaded queue
+        uint8_t item = index;                           // The first item in the queue (ring queue)
+        for (uint8_t i = 1; i <= len; ++i) {
+            Serial.print(queue[item]);
+            Serial.print(", ");
+            if (++item >= h_length) item = 0;
+        }
+    }
+    Serial.print(F("Gradient = "));
+    Serial.println(gradient());
 }

@@ -8,6 +8,7 @@ typedef struct record {
     uint16_t    capacity[2];                                    // The battery capacity, mAh
     tChargeType type[2];                                        // The charging type
     uint8_t     loops[2];                                       // The charging loops, usually 0: do not loop
+    uint8_t     bit_flag[2];
 } tCfg;
 
 class CONFIG {

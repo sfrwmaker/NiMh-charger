@@ -21,12 +21,13 @@ class HISTORY {
         HISTORY(uint8_t h_length);
         virtual         ~HISTORY(void)                  { if (h_length > 0) delete [] queue; }
         uint8_t         length(void)                    { return len; }
-        void            reset(void)                     { len = 0; }
+        void            reset(void)                     { len = 0; index = 0; }
         uint16_t        read(void);                     // Calculate the average value
         void            update(uint16_t item);          // Add new entry to the history
         uint16_t        average(uint16_t item);         // Add new value and calculate the average value
         float           dispersion(void);               // Calculate the math dispersion
         int32_t         gradient(void);                 // approximating the history with the line (y = ax+b). Return parameter a * 1000
+        void            dump(void);                     // Dump history data to the serial port
     private:
         uint16_t        h_length;
         uint16_t        *queue;

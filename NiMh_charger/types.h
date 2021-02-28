@@ -22,4 +22,9 @@ typedef enum {
     SO_ABH = 0, SO_AHB, SO_BAH, SO_BHA, SO_HAB, SO_HBA
 } tSensorOrder;
 
+// Battery boolean configuration bitmap (reserverd for the future use)
+typedef enum {
+    bf_nodischarge = 1                                      // Discharge phase disable flag
+} tBitFlag;
+
 #endif

@@ -64,14 +64,14 @@ static const uint8_t M[8][8] PROGMEM = {
         0b00011111,
         0b00001110
     },
-    {   0b00000000,                                             // Fast Charge
-        0b00000011,
+    {   0b00000011,                                             // Fast Charge
         0b00000110,
         0b00001100,
         0b00011111,
+        0b00000011,
         0b00000110,
         0b00001100,
-        0b00010000
+        0b00011000
     },
     {   0b00000100,                                             // Post charge
         0b00001110,
@@ -108,6 +108,14 @@ static const char types[3][7] PROGMEM = {
     "Slow  ",
     "Rest. ",
     "Fast  "
+};
+
+static const char F_code[5][12] PROGMEM = {
+    "Aborted    ",
+    "Charged    ",
+    "Overheat   ",
+    "Max voltage",
+    "High temer."
 };
 
 #ifdef TWIST_DISPLAY
@@ -153,9 +161,13 @@ void DSPL::setBrightness(uint8_t br) {
     back_light = (br >= 128);
 }
 
-void DSPL::slotStatus(uint8_t index, uint16_t cap, tChargeType type) {
+void DSPL::slotStatus(uint8_t index, uint16_t cap, tChargeType type, bool no_discharge) {
     setCursor(0, index*ROWS/2);
     drawSlotInfo(cap, type);
+    if (no_discharge) {
+        setCursor(15, index*ROWS/2);
+        write('!');
+    }
     if (ROWS > 2) {
         setCursor(0, index*2+1);
         fillRow(0);
@@ -192,10 +204,12 @@ void DSPL::complete(uint8_t index, tFinish code, uint16_t cap, tChargeType type)
     write(PH_KEEP);
     write(' ');
     uint8_t c = 0;
-    for ( ; c < 16; ++c) {
-        char sym = pgm_read_byte(&M_name[(uint8_t)PH_KEEP][c]);
-        if (sym ==0) break;
-        write(sym);
+    if (code <= 4) {
+        for ( ; c < 16; ++c) {
+            char sym = pgm_read_byte(&F_code[code][c]);
+            if (sym ==0) break;
+            write(sym);
+        }
     }
     print("("); print((uint8_t)code); print(")");
     fillRow(c+5);
@@ -236,15 +250,15 @@ void DSPL::timeInfo(tPhase phase, uint8_t index, time_t elapsed, time_t remains,
     } else {
         setCursor(0, index);
     }
-     printTime(elapsed);
-     print(F("  ("));
-     printTime(remains);
-     print(F(")"));
+    printTime(elapsed);
+    print(F("  ("));
+    printTime(remains);
+    print(F(")"));
 }
 
 void  DSPL::aboutInfo(uint16_t temp) {
     setCursor(0, 0);
-    print(F("NiMh charger "));
+    print(F("NiMh chrgr "));
     print(VERSION);
     setCursor(COLS-6, ROWS-1);
     sprintf(buff, "%2d.%1d%cC", temp/10, temp%10, DEGREE_CODE);
@@ -307,6 +321,11 @@ void DSPL::setupMode(uint8_t index, uint8_t menu, uint16_t value) {
             print(value);
             break;
         case 4:
+            if (value & bf_nodischarge)
+                print(F("NO "));
+            print(F("discharge"));
+            break;
+        case 5:
             print(F("Back"));
         default:
             break;
@@ -349,7 +368,7 @@ void DSPL::drawSlotInfo(uint16_t cap, tChargeType type) {
     print(buff);
     for (uint8_t c = 0 ; c < 16; ++c) {
         char sym = pgm_read_byte(&types[(uint8_t)type][c]);
-        if (sym ==0) break;
+        if (sym == 0) break;
         write(sym);
    }
    fillRow(16);
@@ -357,6 +376,7 @@ void DSPL::drawSlotInfo(uint16_t cap, tChargeType type) {
 
 void DSPL::drawTempInfo(uint16_t charged, uint16_t temp) {
     sprintf(buff, " %3d mAh %2d.%1d%cC ", charged, temp/10, temp%10, DEGREE_CODE);
+    buff[15] = '\0';
     print(buff);
 }
 

@@ -1,4 +1,5 @@
 #include "twin_charger.h"
+#include "log.h"
 
 void PID::init(uint8_t denominator_p) {                     // PID parameters are initialized from EEPROM by  call
     resetPID();
@@ -401,21 +402,18 @@ void TWCHARGER::orderSensors(tSensorOrder order) {
         default:
             break;
     }
-    // Initialize FAN turn-on temperature                      
-    hs_hot_temp = temperature(2) + HS_ON_TEMP;              // The ambient temperature plus predefined difference
-    if (hs_hot_temp > HS_HOT_TEMP) {                        // The ambient temperature is high
-        hs_hot_temp = HS_HOT_TEMP;
-    }
 }
 
 bool TWCHARGER::manageFan(void) {
     int16_t hs_temp = temperature(2);                       // Ordered sensor list. 2 - is a heat sink sensor
-    if (fan_on && hs_temp < hs_hot_temp - HS_DIFF_TEMP) {
+    if (fan_on && hs_temp < HS_HOT_TEMP - HS_DIFF_TEMP) {
         fan_on = false;
         digitalWrite(fan_pin, LOW);
-    } else if (!fan_on && hs_temp >= hs_hot_temp) {
+        logFan(hs_temp, false);
+    } else if (!fan_on && hs_temp >= HS_HOT_TEMP) {
         fan_on = true;
         digitalWrite(fan_pin, HIGH);
+        logFan(hs_temp, true);
     }
 }
 
